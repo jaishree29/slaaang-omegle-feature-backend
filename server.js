@@ -4,8 +4,9 @@ const { randomUUID } = require('crypto');
 const server = require("http").createServer();
 const wss = new WebSocket.Server({ server });
 
-server.listen(8080, '0.0.0.0', () => {
-  console.log("Server started on 0.0.0.0:8080");
+const port = process.env.PORT || 8080;
+server.listen(port, '0.0.0.0', () => {
+  console.log(`Server started on port ${port}`);
 });
 
 const clients = new Map();
