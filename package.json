@@ -1,0 +1,12 @@
+{
+  "name": "slaaang-omegle-feature-backend",
+  "version": "1.0.0",
+  "description": "Backend for Omegle clone",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
