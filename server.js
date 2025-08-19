@@ -58,7 +58,25 @@ io.on('connection', (socket) => {
     // EDIT 6: Use the built-in socket.id as the unique client ID.
     const clientId = socket.id;
     clients.set(clientId, socket);
-    socket.partnerId = null;
+  socket.partnerId = null;
+  
+  
+socket.on('skip', () => {
+    if (socket.partnerId) {
+        const partnerSocket = clients.get(socket.partnerId);
+        if (partnerSocket) {
+            partnerSocket.emit('partnerSkipped', { from: clientId });
+            partnerSocket.partnerId = null;
+        }
+        socket.partnerId = null;
+    }
+
+    // Put this user back into waiting pool
+    waitingUsers = waitingUsers.filter(user => user.id !== clientId);
+    waitingUsers.push({ id: clientId, payload: {} });
+
+    log(`Client ${clientId} skipped. Returned to waiting pool.`);
+});
 
     // EDIT 7: Send messages using socket.emit() instead of ws.send()
     socket.emit('welcome', { id: clientId });
@@ -148,26 +166,12 @@ io.on('connection', (socket) => {
     });
 });
 
-socket.on('skip', () => {
-    if (socket.partnerId) {
-        const partnerSocket = clients.get(socket.partnerId);
-        if (partnerSocket) {
-            partnerSocket.emit('partnerSkipped', { from: clientId });
-            partnerSocket.partnerId = null;
-        }
-        socket.partnerId = null;
-    }
-
-    // Put this user back into waiting pool
-    waitingUsers = waitingUsers.filter(user => user.id !== clientId);
-    waitingUsers.push({ id: clientId, payload: {} });
-
-    log(`Client ${clientId} skipped. Returned to waiting pool.`);
-});
-
-
 // EDIT 12: Remove all setInterval blocks. They are not reliable in a serverless environment.
 // The 'disconnect' event will handle all cleanup.
 
-// EDIT 13: Export the entire Express server as a Cloud Function v2. This is the final, crucial step.
-exports.api = functions.v2.https.onRequest(server);
+// // EDIT 13: Export the entire Express server as a Cloud Function v2. This is the final, crucial step.
+// exports.api = functions.v2.https.onRequest(server);
+const port = process.env.PORT || 8080; // Render will set the PORT variable
+server.listen(port, () => {
+  console.log(`✅ Server is listening on port ${port}`);
+});
