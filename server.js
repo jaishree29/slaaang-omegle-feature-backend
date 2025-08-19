@@ -15,9 +15,7 @@ const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
         origin: "*", // Allow all origins for simplicity, restrict this in production
-        methods: ["GET", "POST"],
-        allowedHeaders: ["my-custom-header"],
-        credentials: true
+        methods: ["GET", "POST"]
     }
 });
 
@@ -37,22 +35,20 @@ const log = (message, level = 'INFO') => {
 };
 
 function isCompatible(userA, userB) {
+    const prefsA = userA.payload;
+    const prefsB = userB.payload;
 
-  if (userA.id === userB.id) return false;
-  const prefsA = userA.payload;
-  const prefsB = userB.payload;
+    if (prefsA.interest && prefsB.interest && prefsA.interest !== prefsB.interest) {
+        return false;
+    }
 
-  if (prefsA.interest && prefsB.interest && prefsA.interest !== prefsB.interest) {
-      return false;
-  }
+    const userAWants = prefsA.partnerPreference === 'same' ? prefsA.gender : 'any';
+    const userBWants = prefsB.partnerPreference === 'same' ? prefsB.gender : 'any';
 
-  const userAWants = prefsA.partnerPreference === 'same' ? prefsA.gender : 'any';
-  const userBWants = prefsB.partnerPreference === 'same' ? prefsB.gender : 'any';
+    const aIsHappy = userAWants === 'any' || userAWants === prefsB.gender;
+    const bIsHappy = userBWants === 'any' || userBWants === prefsA.gender;
 
-  const aIsHappy = userAWants === 'any' || userAWants === prefsB.gender;
-  const bIsHappy = userBWants === 'any' || userBWants === prefsA.gender;
-
-  return aIsHappy && bIsHappy;
+    return aIsHappy && bIsHappy;
 }
 
 // EDIT 5: Change the connection event listener from 'wss.on' to 'io.on'
@@ -60,25 +56,7 @@ io.on('connection', (socket) => {
     // EDIT 6: Use the built-in socket.id as the unique client ID.
     const clientId = socket.id;
     clients.set(clientId, socket);
-  socket.partnerId = null;
-  
-  
-socket.on('skip', () => {
-    if (socket.partnerId) {
-        const partnerSocket = clients.get(socket.partnerId);
-        if (partnerSocket) {
-            partnerSocket.emit('partnerSkipped', { from: clientId });
-            partnerSocket.partnerId = null;
-        }
-        socket.partnerId = null;
-    }
-
-    // Put this user back into waiting pool
-    waitingUsers = waitingUsers.filter(user => user.id !== clientId);
-    waitingUsers.push({ id: clientId, payload: {} });
-
-    log(`Client ${clientId} skipped. Returned to waiting pool.`);
-});
+    socket.partnerId = null;
 
     // EDIT 7: Send messages using socket.emit() instead of ws.send()
     socket.emit('welcome', { id: clientId });
@@ -151,29 +129,20 @@ socket.on('skip', () => {
         log(`Client ${clientId} disconnected`);
         clients.delete(clientId);
         
-      waitingUsers = waitingUsers.filter(user => user.id !== clientId);
-      
-      if (socket.partnerId) {
-    const partnerSocket = clients.get(socket.partnerId);
-    if (partnerSocket) {
-        partnerSocket.emit('disconnected', { from: clientId });
-        partnerSocket.partnerId = null;
-
-        // Put partner back into waiting pool with preserved prefs
-        waitingUsers.push({ id: partnerSocket.id, payload: partnerSocket.userPayload || {} });
-    }
-}
+        waitingUsers = waitingUsers.filter(user => user.id !== clientId);
         
-        
+        if (socket.partnerId) {
+            const partnerSocket = clients.get(socket.partnerId);
+            if (partnerSocket) {
+                partnerSocket.emit('disconnected', { from: clientId });
+                partnerSocket.partnerId = null;
+            }
+        }
     });
 });
 
 // EDIT 12: Remove all setInterval blocks. They are not reliable in a serverless environment.
 // The 'disconnect' event will handle all cleanup.
 
-// // EDIT 13: Export the entire Express server as a Cloud Function v2. This is the final, crucial step.
-// exports.api = functions.v2.https.onRequest(server);
-const port = process.env.PORT || 8080; // Render will set the PORT variable
-server.listen(port, () => {
-  console.log(`✅ Server is listening on port ${port}`);
-});
+// EDIT 13: Export the entire Express server as a Cloud Function v2. This is the final, crucial step.
+exports.api = functions.v2.https.onRequest(server);
