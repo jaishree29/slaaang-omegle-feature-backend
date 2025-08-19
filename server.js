@@ -145,4 +145,8 @@ io.on('connection', (socket) => {
 // The 'disconnect' event will handle all cleanup.
 
 // EDIT 13: Export the entire Express server as a Cloud Function v2. This is the final, crucial step.
-exports.api = functions.v2.https.onRequest(server);
+// exports.api = functions.v2.https.onRequest(server);
+const port = process.env.PORT || 8080;
+server.listen(port, () => {
+  console.log(`✅ Server is listening on port ${port}`);
+});
